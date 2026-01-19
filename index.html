@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boat Animation with Controls</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: sans-serif;
+            background-color: #87CEEB;
+        }
+        canvas {
+            display: block;
+        }
+
+        /* Styling untuk Panel Kontrol */
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.8); /* Semi-transparan */
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 250px;
+            z-index: 10; /* Pastikan di atas canvas */
+        }
+        
+        .control-group {
+            margin-bottom: 10px;
+        }
+        
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        input[type=range] {
+            width: 100%;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div id="controls">
+    <h3>🌊 Pengaturan Ombak</h3>
+    
+    <div class="control-group">
+        <label>Tinggi Ombak (Amplitude)</label>
+        <input type="range" id="ampSlider" min="0" max="150" value="40">
+    </div>
+
+    <div class="control-group">
+        <label>Kecepatan Ombak (Speed)</label>
+        <input type="range" id="speedSlider" min="0" max="100" value="30">
+    </div>
+
+    <div class="control-group">
+        <label>Kerapatan Ombak (Frequency)</label>
+        <input type="range" id="freqSlider" min="1" max="50" value="10">
+    </div>
+
+    <hr>
+    <h3>⛵ Pengaturan Kapal</h3>
+
+    <div class="control-group">
+        <label>Berat Kapal (Inertia)</label>
+        <input type="range" id="inertiaSlider" min="1" max="50" value="10">
+        <small style="font-size: 10px; color: #666;">(Kiri = Ringan, Kanan = Berat)</small>
+    </div>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // --- Konfigurasi Awal ---
+    let width, height;
+    
+    const wave = {
+        y: 0,           
+        length: 0.01,   
+        amplitude: 40,  
+        speed: 0.03,    
+        offset: 0       
+    };
+
+    const boat = {
+        x: 0,           
+        y: 0,           
+        angle: 0,       
+        targetY: 0,     
+        targetAngle: 0, 
+        lerpFactor: 0.1 // Digabung untuk y dan angle agar simpel
+    };
+
+    // --- Event Listeners untuk Slider ---
+    
+    // 1. Tinggi Ombak
+    document.getElementById('ampSlider').addEventListener('input', (e) => {
+        wave.amplitude = parseFloat(e.target.value);
+    });
+
+    // 2. Kecepatan (Dibagi 1000 agar angkanya tidak terlalu kencang)
+    document.getElementById('speedSlider').addEventListener('input', (e) => {
+        wave.speed = parseFloat(e.target.value) / 1000;
+    });
+
+    // 3. Kerapatan (Frequency)
+    document.getElementById('freqSlider').addEventListener('input', (e) => {
+        wave.length = parseFloat(e.target.value) / 1000;
+    });
+
+    // 4. Berat Kapal (Semakin kecil lerp, semakin lambat merespon/berat)
+    document.getElementById('inertiaSlider').addEventListener('input', (e) => {
+        // Balik logikanya: Slider tinggi = makin berat (lerp makin kecil)
+        // Range slider 1-50. Kita mapping ke 0.2 - 0.01
+        const val = parseFloat(e.target.value);
+        boat.lerpFactor = 0.25 - (val * 0.005); 
+    });
+
+
+    // --- Core Animation Logic (Sama seperti sebelumnya) ---
+
+    function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+        wave.y = height / 2 + 50; 
+        boat.x = width / 2;
+        boat.y = wave.y;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function lerp(a, b, t) {
+        return a + (b - a) * t;
+    }
+
+    function drawSky() {
+        const gradient = ctx.createLinearGradient(0, 0, 0, height);
+        gradient.addColorStop(0, "#4facfe"); 
+        gradient.addColorStop(1, "#f093fb"); 
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.save();
+        ctx.fillStyle = "#FFD700";
+        ctx.shadowColor = "#FFD700";
+        ctx.shadowBlur = 40;
+        ctx.beginPath();
+        ctx.arc(width - 100, 100, 40, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function drawWater() {
+        ctx.fillStyle = "rgba(0, 105, 148, 0.8)";
+        ctx.beginPath();
+        ctx.moveTo(0, height);
+        ctx.lineTo(0, wave.y);
+
+        for (let i = 0; i <= width; i += 5) { 
+            const y = wave.y + Math.sin(i * wave.length + wave.offset) * wave.amplitude;
+            ctx.lineTo(i, y);
+        }
+
+        ctx.lineTo(width, height);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+    }
+
+    function updatePhysics() {
+        wave.offset += wave.speed;
+
+        const waveHeightAtBoat = Math.sin(boat.x * wave.length + wave.offset) * wave.amplitude;
+        boat.targetY = wave.y + waveHeightAtBoat;
+
+        const slope = Math.cos(boat.x * wave.length + wave.offset) * wave.amplitude * wave.length;
+        boat.targetAngle = Math.atan(slope);
+
+        // Gunakan nilai lerp dari slider
+        boat.y = lerp(boat.y, boat.targetY, boat.lerpFactor);
+        boat.angle = lerp(boat.angle, boat.targetAngle, boat.lerpFactor * 0.5); // Angle sedikit lebih lambat
+    }
+
+    function drawBoat() {
+        ctx.save();
+        ctx.translate(boat.x, boat.y);
+        ctx.rotate(boat.angle);
+
+        ctx.fillStyle = "#8B4513"; 
+        ctx.beginPath();
+        ctx.moveTo(-25, -10); 
+        ctx.lineTo(25, -10);  
+        ctx.lineTo(15, 5);    
+        ctx.lineTo(-15, 5);   
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = "#3e2723";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, -10);
+        ctx.lineTo(0, -50);
+        ctx.stroke();
+
+        ctx.fillStyle = "#FFF";
+        ctx.beginPath();
+        ctx.moveTo(2, -15);
+        ctx.lineTo(25, -45);
+        ctx.lineTo(2, -45);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, width, height);
+        drawSky();
+        updatePhysics();
+        drawBoat();  
+        drawWater(); 
+        requestAnimationFrame(animate);
+    }
+
+    animate();
+</script>
+</body>
+</html>
