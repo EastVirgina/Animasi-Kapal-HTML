@@ -12,7 +12,7 @@ Sebuah eksperimen visual menggunakan HTML5 Canvas dan JavaScript untuk menciptak
 - JavaScript (Vanilla): Logika utama animasi, kalkulasi koordinat, dan loop render.
 
 📁 Cara Menjalankan
-1. Clone repositori ini: `git clone [https://eastvirgina.github.io/Animasi-Kapal-HTML/]`
+1. Clone repositori ini: git clone https://eastvirgina.github.io/Animasi-Kapal-HTML/
 2. Buka file `boat.html` di browser favorit Anda.
 3. Nikmati animasinya!
 
