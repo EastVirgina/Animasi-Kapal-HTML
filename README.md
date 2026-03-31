@@ -18,4 +18,3 @@ Sebuah eksperimen visual menggunakan HTML5 Canvas dan JavaScript untuk menciptak
 
 📝 Dokumentasi Teknis
 Proyek ini dikembangkan dengan fokus pada manipulasi DOM dan pemahaman sistem koordinat pada elemen Canvas untuk menghasilkan pergerakan objek yang halus.
-https://eastvirgina.github.io/Animasi-Kapal-HTML/
